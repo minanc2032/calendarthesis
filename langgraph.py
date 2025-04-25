@@ -67,8 +67,8 @@ def delete_calendar_event():
 
 @tool
 def get_calendar_events(
-    start_datetime: None,
-    end_datetime: None,
+    start_datetime: str,
+    end_datetime: str,
     calendar_id: str = "primary",
     max_results: int = 10,
     order_by: str = "startTime",
@@ -76,8 +76,12 @@ def get_calendar_events(
 ) -> str:
     """Retrieve a list of events from a Google Calendar.
 
+    rules: 
+    - if start_datetime is not provided, by default it will be today 
+    - if end_datetime is not provided, by default it will be 1 week from today 
+
     Args:
-        start_datetime: Lower bound (inclusive) for an event's start date/time, in 'YYYY-MM-DD HH:MM:SS' format.
+        start_datetime: Lower bound (inclusive) for an event's start date/time, in 'YYYY-MM-DD HH:MM:SS' format. 
         end_datetime: Upper bound (exclusive) for an event's end date/time, in 'YYYY-MM-DD HH:MM:SS' format.
         calendar_id: The calendar to fetch from (e.g. 'primary').
         max_results: Maximum number of events to return (default: 10).
@@ -86,6 +90,11 @@ def get_calendar_events(
     Returns:
         str: list of events matching the query.
     """
+    if start_datetime is None:
+        start_datetime = current_time
+    if end_datetime is None:
+        end_datetime = datetime.now(amsterdam_tz) + timedelta(days=7)    
+
     get_calendar_info = GetCalendarsInfo()
     calendars_info = get_calendar_info.invoke({})
     tool = CalendarSearchEvents()
@@ -176,5 +185,4 @@ if __name__ == "__main__":
     events = graph.stream({"messages": initial_messages})
     for event in events:
         print(event)
-
 
