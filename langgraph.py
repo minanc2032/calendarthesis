@@ -2,6 +2,8 @@ import argparse
 import os
 from datetime import datetime
 import pytz
+from datetime import timedelta
+
 
 from langchain_core.tools import tool
 from langchain_core.messages import SystemMessage, HumanMessage
@@ -13,6 +15,13 @@ from langchain_google_community.calendar.get_calendars_info import GetCalendarsI
 # tool = GetCalendarsInfo()
 # output = tool.invoke({})
 # print(output)
+
+from langfuse.callback import CallbackHandler
+langfuse_handler = CallbackHandler(
+    public_key="pk-lf-4301db05-d17f-4fd4-9cf7-d04314a1690e",
+    secret_key="sk-lf-d4b2f997-698f-4283-932e-6d6e7110f28e",
+    host="https://cloud.langfuse.com"
+)
 
 
 
@@ -67,8 +76,8 @@ def delete_calendar_event():
 
 @tool
 def get_calendar_events(
-    start_datetime: str,
-    end_datetime: str,
+    start_datetime: str ,
+    end_datetime: str ,
     calendar_id: str = "primary",
     max_results: int = 10,
     order_by: str = "startTime",
@@ -182,7 +191,9 @@ if __name__ == "__main__":
     ]
 
 
-    events = graph.stream({"messages": initial_messages})
+    events = graph.stream({"messages": initial_messages},config={"callbacks": [langfuse_handler]})
     for event in events:
         print(event)
+
+
 
