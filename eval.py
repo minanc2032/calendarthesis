@@ -6,6 +6,14 @@ from datetime import datetime
 from langchain_core.messages import SystemMessage, HumanMessage
 from mine_langgraph import graph
 
+from langfuse.callback import CallbackHandler
+langfuse_handler = CallbackHandler(
+    public_key="pk-lf-4301db05-d17f-4fd4-9cf7-d04314a1690e",
+    secret_key="sk-lf-d4b2f997-698f-4283-932e-6d6e7110f28e",
+    host="https://cloud.langfuse.com"
+)
+
+
 
 def evaluate(input_csv: str, output_csv: str):
     # Load test cases
@@ -34,7 +42,7 @@ def evaluate(input_csv: str, output_csv: str):
         token_usage = None
         try:
             # Stream through the graph, collecting response and metadata
-            for event in graph.stream({"messages": messages}):
+            for event in graph.stream({"messages": messages},config={"callbacks": [langfuse_handler]}):
                 if isinstance(event, dict) and 'content' in event:
                     response_chunks.append(event['content'])
                 elif hasattr(event, 'content'):
@@ -96,3 +104,4 @@ if __name__ == '__main__':
     )
     args = parser.parse_args()
     evaluate(args.input_csv, args.output_csv)
+
