@@ -4,7 +4,7 @@ import pandas as pd
 import pytz
 import time
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta, time as dt_time
 from dateutil import parser as dateutil_parser
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from langfuse.callback import CallbackHandler
@@ -73,8 +73,23 @@ def evaluate(input_csv: str, output_csv: str) -> None:
             continue
 
         start_time = time.time()
+        # Define time interpretations
+        time_definitions = (
+            "Interpret time ranges as follows unless specified otherwise: \n"
+            "- 'all day': 00:00:00 to 23:59:59 of the specified day. \n"
+            "- 'afternoon': 12:00:00 to 17:00:00. \n"
+            "- 'evening': 17:00:00 to 21:00:00. \n"
+            "- 'night': 21:00:00 to 06:00:00 the following day."
+        )
+
+        system_prompt = (
+            f"You are a helpful assistant. The current date and time for ALL calculations is EXACTLY {system_time}. "
+            f"Do NOT use any other time reference. Interpret all relative dates (like 'tomorrow', 'this Friday', "
+            f"'next week') based *only* on this provided date and time. \n"
+            f"{time_definitions}"
+        )
         messages = [
-            SystemMessage(content=f"The current date and time is {system_time}."),
+            SystemMessage(content=system_prompt),
             HumanMessage(content=str(user_input))
         ]
 
@@ -206,15 +221,53 @@ def evaluate(input_csv: str, output_csv: str) -> None:
                 
                 # --- Argument exists in actual_args, perform comparison ---
                 if key in ["start_datetime", "end_datetime"]:
-                    # Compare datetimes flexibly
+                    # Flexible comparison logic
                     try:
-                        dt_expected = dateutil_parser.parse(expected_value)
-                        dt_actual = dateutil_parser.parse(actual_value)
-                        if dt_expected != dt_actual:
+                        # Attempt to parse both as datetimes
+                        dt_expected_raw = datetime.fromisoformat(str(expected_value).replace('Z', '+00:00'))
+                        dt_actual_raw = datetime.fromisoformat(str(actual_value).replace('Z', '+00:00'))
+
+                        # Make timezone naive for comparison
+                        dt_expected = dt_expected_raw.replace(tzinfo=None)
+                        dt_actual = dt_actual_raw.replace(tzinfo=None)
+
+                        # Assume match unless proven otherwise by checks below
+                        arg_matches = True 
+
+                        # 1. Exact match check (applies to all datetimes)
+                        if dt_expected == dt_actual:
+                            arg_matches = True # It's a match
+                        # 2. End-of-day equivalence check (only for end_datetime)
+                        elif key == "end_datetime":
+                            t_expected = dt_expected.time()
+                            t_actual = dt_actual.time()
+                            d_expected = dt_expected.date()
+                            d_actual = dt_actual.date()
+
+                            is_end_of_day_equivalent = False
+                            # Case 1: Expected is 23:59:59, Actual is 00:00:00 next day
+                            if t_expected == dt_time(23, 59, 59) and t_actual == dt_time(0, 0, 0) and d_actual == d_expected + timedelta(days=1):
+                                is_end_of_day_equivalent = True
+                            # Case 2: Actual is 23:59:59, Expected is 00:00:00 next day
+                            elif t_actual == dt_time(23, 59, 59) and t_expected == dt_time(0, 0, 0) and d_expected == d_actual + timedelta(days=1):
+                                is_end_of_day_equivalent = True
+
+                            if is_end_of_day_equivalent:
+                                arg_matches = True # Consider it a match
+                            else:
+                                arg_matches = False # Not exact, not equivalent end-of-day
+                        # 3. Not end_datetime and not an exact match
+                        else: # Must be start_datetime and not an exact match
+                            arg_matches = False 
+
+                        # If this specific datetime arg didn't match any criteria
+                        if not arg_matches:
                             args_match = False
                             break
-                    except (ValueError, TypeError):
-                        if expected_value != actual_value:
+
+                    except ValueError:
+                        # Fallback to string comparison if parsing fails
+                        if str(expected_value) != str(actual_value):
                             args_match = False
                             break
                 elif key == "summary":
@@ -315,4 +368,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
