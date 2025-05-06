@@ -1,0 +1,15 @@
+[project]
+name = "calendarthesis"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "langchain-core>=0.3.58",
+    "langchain-google-community>=2.0.7",
+    "langchain-openai>=0.3.16",
+    "langfuse>=2.60.3",
+    "langgraph>=0.4.1",
+    "pandas>=2.2.3",
+    "pytz>=2025.2",
+]

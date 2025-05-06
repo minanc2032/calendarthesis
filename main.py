@@ -20,6 +20,13 @@ from calendar_tools import (
     get_current_time
 )
 
+# Environment variables for OpenRouter
+# Ensure OPENROUTER_API_KEY is set in your environment if using OpenRouter models
+# e.g., export OPENROUTER_API_KEY='your_openrouter_api_key'
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "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")
+OPENROUTER_SITE_URL = os.getenv("OPENROUTER_SITE_URL", "http://localhost:3000") # Example default
+OPENROUTER_SITE_NAME = os.getenv("OPENROUTER_SITE_NAME", "CalendarThesisApp") # Example default
+
 def get_langfuse_handler() -> CallbackHandler:
     """Create a Langfuse callback handler from environment variables."""
     return CallbackHandler(
@@ -33,12 +40,45 @@ os.environ["OPENAI_API_KEY"] = "sk-proj-5T3PmhHWIeLoY-1lPhBtM76AbUXObxsb4kuzJ0lG
 class State(TypedDict):
     messages: Annotated[list, add_messages]
 
-def build_graph() -> Any:
-    """Build and compile the LangGraph chatbot graph."""
+def _get_llm_with_tools(model_identifier: str, tools: list) -> Any:
+    """
+    Creates and configures an LLM instance based on the model identifier
+    and binds the provided tools to it.
+    Uses ChatOpenAI for both OpenAI and OpenRouter (by setting api_base).
+    """
+    llm_instance: ChatOpenAI
+    
+    if model_identifier == "gpt-4o":
+        # Assumes OPENAI_API_KEY is set in the environment (either by script or shell)
+        print(f"Initializing LLM: OpenAI model '{model_identifier}'")
+        llm_instance = ChatOpenAI(model=model_identifier, temperature=0)
+    else: # Assume it's an OpenRouter model (e.g., "mistralai/mistral-7b-instruct", "meta-llama/llama-3.1-8b-instruct:free")
+        if not OPENROUTER_API_KEY:
+            raise ValueError(
+                "OPENROUTER_API_KEY environment variable not set. "
+                "Please set it to use OpenRouter models (e.g., 'export OPENROUTER_API_KEY=your_key')."
+            )
+        
+        openrouter_model_name = model_identifier # The identifier is the model name for OpenRouter
+            
+        print(f"Initializing LLM: OpenRouter model '{openrouter_model_name}' with site URL '{OPENROUTER_SITE_URL}' and site name '{OPENROUTER_SITE_NAME}'")
+        llm_instance = ChatOpenAI(
+            model_name=openrouter_model_name,
+            temperature=0, # Good default for tool use
+            openai_api_base="https://openrouter.ai/api/v1",
+            openai_api_key=OPENROUTER_API_KEY,
+        )
+        # If model_identifier is invalid for OpenRouter, the API call will fail,
+        # which is the desired behavior. No need for a specific "Unsupported model" error here.
+        
+    return llm_instance.bind_tools(tools)
+
+def build_graph(model_identifier: str) -> Any:
+    """Build and compile the LangGraph chatbot graph using the specified LLM."""
     graph_builder = StateGraph(State)
     tools = [create_calendar_event, delete_calendar_event, get_calendar_events, get_calendar_event]
-    llm = ChatOpenAI(model="gpt-4o")
-    llm_with_tools = llm.bind_tools(tools)
+    
+    llm_with_tools = _get_llm_with_tools(model_identifier, tools)
 
     def chatbot(state: State) -> Dict[str, List[Any]]:
         return {"messages": [llm_with_tools.invoke(state["messages"])]}
@@ -54,7 +94,18 @@ def build_graph() -> Any:
 def main():
     parser = argparse.ArgumentParser(description="Run LangGraph chatbot with a custom message.")
     parser.add_argument('--message', type=str, default="Schedule meeting", help='Message to send to the chatbot')
+    parser.add_argument(
+        '--model',
+        type=str,
+        default="gpt-4o",
+        help='LLM to use. Examples: "gpt-4o", or an OpenRouter model like "mistralai/mistral-7b-instruct", "meta-llama/llama-3.1-8b-instruct:free"'
+    )
     args = parser.parse_args()
+
+    # Warning for OpenRouter models if API key is missing
+    if args.model != "gpt-4o" and not OPENROUTER_API_KEY:
+        print(f"Warning: Attempting to use OpenRouter model '{args.model}' but OPENROUTER_API_KEY environment variable is not set.")
+        print("The application will likely fail if this model requires an API key and it's not found by other means.")
 
     system_time = get_current_time()
     initial_messages = [
@@ -62,7 +113,7 @@ def main():
         HumanMessage(content=args.message)
     ]
 
-    graph = build_graph()
+    graph = build_graph(args.model)
     langfuse_handler = get_langfuse_handler()
     events = graph.stream({"messages": initial_messages}, config={"callbacks": [langfuse_handler]})
     for event in events:

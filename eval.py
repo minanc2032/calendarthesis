@@ -34,7 +34,7 @@ TOOL_DEFAULTS = {
 }
 # ---
 
-def evaluate(input_csv: str, output_csv: str) -> None:
+def evaluate(input_csv: str, output_csv: str, model_identifier: str) -> None:
     """
     Evaluate the chatbot across test inputs in a CSV, recording latency,
     token usage, and comparing actual tool calls against expected ones.
@@ -42,12 +42,16 @@ def evaluate(input_csv: str, output_csv: str) -> None:
         input_csv: Path to CSV file with columns "input", "expected_tool_name",
                    and "expected_tool_args" (as JSON string).
         output_csv: Path where the results CSV will be written.
+        model_identifier: Identifier for the LLM to use (e.g., "gpt-4o", "openrouter/mistralai/mistral-7b-instruct")
     """
     df = pd.read_csv(input_csv, engine='python')
     results = []
     # Use the fixed time for the system message
     system_time = f"{FIXED_EVAL_TIME} ({AMSTERDAM_TZ_INFO})"
-    graph = build_graph()
+    
+    # The build_graph function (imported from main.py) will handle LLM initialization
+    # and API key checks based on model_identifier.
+    graph = build_graph(model_identifier) # Pass model_identifier
     langfuse_handler = get_langfuse_handler()
 
     # Initialize counters
@@ -363,8 +367,20 @@ def main():
     )
     parser.add_argument('--input_csv', type=str, default='calendarthesis/test_inputs.csv', help='Path to CSV file with inputs and expected tool calls.')
     parser.add_argument('--output_csv', type=str, default='calendarthesis/evaluation_results.csv', help='Path where the evaluation results CSV will be written.')
+    parser.add_argument(
+        '--model',
+        type=str,
+        default="gpt-4o",
+        help='LLM to use. Examples: "gpt-4o", or an OpenRouter model like "mistralai/mistral-7b-instruct", "meta-llama/llama-3.1-8b-instruct:free"'
+    )
     args = parser.parse_args()
-    evaluate(args.input_csv, args.output_csv)
+
+    # Warning for OpenRouter models if API key is missing
+    if args.model != "gpt-4o" and not os.getenv("OPENROUTER_API_KEY"):
+        print(f"Warning: Attempting to use OpenRouter model '{args.model}' for evaluation, but OPENROUTER_API_KEY environment variable is not set.")
+        print("The evaluation will likely fail during graph initialization if the key is required and not found.")
+
+    evaluate(args.input_csv, args.output_csv, args.model)
 
 if __name__ == '__main__':
     main()
