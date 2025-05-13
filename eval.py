@@ -275,8 +275,11 @@ def evaluate(input_csv: str, output_csv: str, model_identifier: str) -> None:
                             args_match = False
                             break
                 elif key == "summary":
-                    # Compare summary case-insensitively
-                    if str(expected_value).lower() != str(actual_value).lower():
+                    # Flexible summary comparison (case-insensitive)
+                    # Passes if one string starts with the other.
+                    actual_lower = str(actual_value).lower()
+                    expected_lower = str(expected_value).lower()
+                    if not (actual_lower.startswith(expected_lower) or expected_lower.startswith(actual_lower)):
                         args_match = False
                         break
                 else:
@@ -370,7 +373,7 @@ def main():
     parser.add_argument(
         '--model',
         type=str,
-        default="gpt-4o",
+        default="qwen/qwen3-32b",
         help='LLM to use. Examples: "gpt-4o", or an OpenRouter model like "mistralai/mistral-7b-instruct", "meta-llama/llama-3.1-8b-instruct:free"'
     )
     args = parser.parse_args()

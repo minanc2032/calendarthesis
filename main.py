@@ -23,8 +23,9 @@ from calendar_tools import (
 # Environment variables for OpenRouter
 # Ensure OPENROUTER_API_KEY is set in your environment if using OpenRouter models
 # e.g., export OPENROUTER_API_KEY='your_openrouter_api_key'
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "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")
-OPENROUTER_SITE_URL = os.getenv("OPENROUTER_SITE_URL", "http://localhost:3000") # Example default
+#OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "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")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "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")
+OPENROUTER_SITE_URL = os.getenv("OPENROUTER_SITE_URL", "https://openrouter.ai/api/v1") # Changed default
 OPENROUTER_SITE_NAME = os.getenv("OPENROUTER_SITE_NAME", "CalendarThesisApp") # Example default
 
 def get_langfuse_handler() -> CallbackHandler:
@@ -97,7 +98,7 @@ def main():
     parser.add_argument(
         '--model',
         type=str,
-        default="gpt-4o",
+        default="qwen/qwen3-32b",
         help='LLM to use. Examples: "gpt-4o", or an OpenRouter model like "mistralai/mistral-7b-instruct", "meta-llama/llama-3.1-8b-instruct:free"'
     )
     args = parser.parse_args()
@@ -108,8 +109,24 @@ def main():
         print("The application will likely fail if this model requires an API key and it's not found by other means.")
 
     system_time = get_current_time()
+    
+    # Enhanced system prompt for better tool usage with the Llama model
+    if "llama-3.2-3b" in args.model:
+        system_prompt = (
+            f"The current date and time is {system_time} (Europe/Amsterdam). "
+            f"IMPORTANT: When you use a tool, you MUST provide complete and valid JSON arguments. "
+            f"FORMAT REQUIREMENTS:\n"
+            f"1. For any date/time fields, ALWAYS use ISO format like '2024-07-17T10:00:00' (not natural language like 'tomorrow' or 'next Monday').\n"
+            f"2. For timezone fields, ALWAYS use the complete string 'Europe/Amsterdam'.\n"
+            f"3. All string values in JSON must be properly quoted and all JSON objects must have closing braces.\n"
+            f"4. Argument example for create_calendar_event: {{\"summary\": \"Meeting\", \"start_datetime\": \"2024-07-17T10:00:00\", \"end_datetime\": \"2024-07-17T11:00:00\", \"timezone\": \"Europe/Amsterdam\"}}\n"
+            f"5. Argument example for get_calendar_events: {{\"start_datetime\": \"2024-07-17T00:00:00\", \"end_datetime\": \"2024-07-17T23:59:59\", \"time_zone\": \"Europe/Amsterdam\"}}"
+        )
+    else:
+        system_prompt = f"The current date and time is {system_time} (Europe/Amsterdam)."
+    
     initial_messages = [
-        SystemMessage(content=f"The current date and time is {system_time} (Europe/Amsterdam)."),
+        SystemMessage(content=system_prompt),
         HumanMessage(content=args.message)
     ]
 

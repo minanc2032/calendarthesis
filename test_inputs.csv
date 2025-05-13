@@ -72,3 +72,5 @@ input,expected_tool_name,expected_tool_args
 "Add 'Final Touches' on 2024-08-14 from 15:30 to 16:00.","create_calendar_event","{""summary"": ""Final Touches"", ""start_datetime"": ""2024-08-14 15:30:00"", ""end_datetime"": ""2024-08-14 16:00:00""}"
 "What is the very next event on my calendar?","get_calendar_events","{""max_results"": 1}"
 "Show me the next 7 calendar events.",get_calendar_events,"{}"
+"Schedule 'Team Meeting' for 2024-07-20 at 2 PM for 1 hour.","create_calendar_event","{""summary"": ""Team Meeting"", ""start_datetime"": ""2024-07-20 14:00:00"", ""end_datetime"": ""2024-07-20 15:00:00""}"
+"Any events on 2024-07-21 between 9 AM and 12 PM?","get_calendar_events","{""start_datetime"": ""2024-07-21 09:00:00"", ""end_datetime"": ""2024-07-21 12:00:00""}"
