@@ -23,20 +23,20 @@ from calendar_tools import (
 # Environment variables for OpenRouter
 # Ensure OPENROUTER_API_KEY is set in your environment if using OpenRouter models
 # e.g., export OPENROUTER_API_KEY='your_openrouter_api_key'
-#OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "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")
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "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")
+#OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 OPENROUTER_SITE_URL = os.getenv("OPENROUTER_SITE_URL", "https://openrouter.ai/api/v1") # Changed default
 OPENROUTER_SITE_NAME = os.getenv("OPENROUTER_SITE_NAME", "CalendarThesisApp") # Example default
 
 def get_langfuse_handler() -> CallbackHandler:
     """Create a Langfuse callback handler from environment variables."""
     return CallbackHandler(
-        public_key="pk-lf-4301db05-d17f-4fd4-9cf7-d04314a1690e",
-        secret_key="sk-lf-d4b2f997-698f-4283-932e-6d6e7110f28e",
+        public_key="",
+        secret_key="",
         host="https://cloud.langfuse.com"
     )
 
-os.environ["OPENAI_API_KEY"] = "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"
+os.environ["OPENAI_API_KEY"] = ""
 
 class State(TypedDict):
     messages: Annotated[list, add_messages]
